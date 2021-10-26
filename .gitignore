@@ -129,4 +129,6 @@ dmypy.json
 .pyre/
 
 3.4.1.zip
+3.4.16.zip
 opencv-3.4.1/
+opencv-3.4.16/

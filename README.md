@@ -1,7 +1,7 @@
 # FEUP-RVA
 # Download OpenCV source
 
-$ wget https://github.com/opencv/opencv/archive/3.4.1.zip
+$ wget https://github.com/opencv/opencv/archive/3.4.16.zip
 
 # Install Dependencies:
 
@@ -17,9 +17,9 @@ $ sudo apt-get install python-opencv
 
 After installing the dependencies, now we need to build and install OpenCV using the following commands:
 
-$ unzip opencv-3.4.1.zip
+$ unzip opencv-3.4.16.zip
 
-$ cd opencv-3.4.1
+$ cd opencv-3.4.16
 
 $ mkdir build && cd build
 
