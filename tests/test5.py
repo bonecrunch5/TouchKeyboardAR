@@ -6,14 +6,16 @@ import numpy as np
 if __name__ == '__main__' :
 
     # Read source image.
-    im_src = cv2.imread('book1.jpg')
+    im_src = cv2.imread('book2_edited.jpg')
     # Four corners of the book in source image
-    pts_src = np.array([[179, 145], [300, 210], [177, 377],[40, 270]])
+    pts_src = np.array([[111,123], [230,153], [293,402],[130, 323]])
 
     # Read destination image.
     im_dst = cv2.imread('book2.jpg')
     # Four corners of the book in destination image.
-    pts_dst = np.array([[180, 147],[300, 210],[180, 376],[45, 268]])
+    #pts_dst = np.array([[1,1],[333,1],[333, 444],[1, 444]])
+    pts_dst = np.array([[1,1],[333,1],[333, 444],[1, 444]])
+
 
     # Calculate Homography
     h, status = cv2.findHomography(pts_src, pts_dst)
@@ -24,6 +26,6 @@ if __name__ == '__main__' :
     # Display images
     cv2.imshow("Source Image", im_src)
     cv2.imshow("Destination Image", im_dst)
-    cv2.imshow("Warped Source Image", im_out)
+    cv2.imshow("Warped Source Image", im_out)550
 
     cv2.waitKey(0)

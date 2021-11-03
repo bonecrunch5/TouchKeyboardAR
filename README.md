@@ -3,7 +3,7 @@
 Install OpenCV and dependencies on Python:
 
 ```
-pip install opencv-python==3.4.16.57
+pip install opencv-python==4.5.4.58
 ```
 
 Now compile and run the test program:
