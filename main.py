@@ -31,6 +31,8 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
  """
 
+pts_dst = np.array([[1,1],[333,1],[333, 444],[1, 444]])
+
 while(True):
     # Capture frame-by-frame
     success, img = cap.read()
@@ -56,8 +58,6 @@ while(True):
     mask4 = np.zeros_like(image_copy)
     mask4 = cv2.cvtColor(mask4, cv2.COLOR_BGR2GRAY)
     #mask[contours > 0.01*contours.max()] = 255
-
-
     
     for contour in contours:
         if cv2.contourArea(contour) > 10000:
@@ -73,20 +73,13 @@ while(True):
             # drawing skewed rectangle
             cv2.drawContours(image_copy, [approx], -1, (0, 255, 0))
 
-            pts_dst = np.array([[1,1],[333,1],[333, 444],[1, 444]])
+            if(len(approx) == 4):
+                h, status = cv2.findHomography(approx, pts_dst)
 
-            h, status = cv2.findHomography(approx, pts_dst)
-
-            im_dst = cv2.imread('book2.jpg')
-
-            
-            im_out = cv2.warpPerspective(img, h, (im_dst.shape[1],im_dst.shape[0]))
-            cv2.imshow("Warped Source Image", im_out)
-
-
-        
-
-            
+                im_dst = cv2.imread('book2.jpg')
+                
+                im_out = cv2.warpPerspective(img, h, (im_dst.shape[1],im_dst.shape[0]))
+                cv2.imshow("Warped Source Image", im_out)
 
     """ cv2.drawContours(image=image_copy, contours=contours, contourIdx=-1,
                      color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA) """
