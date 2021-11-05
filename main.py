@@ -10,6 +10,24 @@ if not (cap.isOpened()):
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1000)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
+# What sorcery is happening down here to get the top image of the keyboard:
+""" 
+    1-Capture image
+    2-Convert from rgb to grayscale
+    3-Smooth the image 
+    4-Threshold
+    5-Find Contours
+    6-Find the countour with more than 10000 pixels of area
+    7-Aproximate it to a rectangle
+    8-Get the corners
+    9-Find homography to get top imageof the keyboard
+
+    Note: Some shady things going on the arguments of the warpPerspective function because of the size of the output image, need to fix that
+          (Its using the size of the book experiment image, maybe because de destination points are from there, need to change that)
+    Note2: There's some code doing nothing, in the future we need to clean that, but by now it's there if it's needed
+
+ """
+
 while(True):
     # Capture frame-by-frame
     success, img = cap.read()
@@ -42,6 +60,30 @@ while(True):
         if cv2.contourArea(contour) > 10000:
             cv2.drawContours(image=mask4, contours=contour, contourIdx=-1,
                      color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
+            perimeter = cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, 0.05 * perimeter, True)
+
+            for point in approx:
+                x, y = point[0]
+                cv2.circle(image_copy, (x, y), 3, (0, 255, 0), -1)
+
+            # drawing skewed rectangle
+            cv2.drawContours(image_copy, [approx], -1, (0, 255, 0))
+
+            pts_dst = np.array([[1,1],[333,1],[333, 444],[1, 444]])
+
+            h, status = cv2.findHomography(approx, pts_dst)
+
+            im_dst = cv2.imread('book2.jpg')
+
+            
+            im_out = cv2.warpPerspective(img, h, (im_dst.shape[1],im_dst.shape[0]))
+            cv2.imshow("Warped Source Image", im_out)
+
+
+        
+
+            
 
     """ cv2.drawContours(image=image_copy, contours=contours, contourIdx=-1,
                      color=(0, 255, 0), thickness=2, lineType=cv2.LINE_AA) """
@@ -92,13 +134,13 @@ while(True):
     #cv2.imshow('img',img)
     #cv2.imshow('img gray',imgGray)
     #cv2.imshow('img smooth',imgSmooth)
-    cv2.imshow('img threshold',imgThresh)
+    #cv2.imshow('img threshold',imgThresh)
     cv2.imshow('img canny', imgCanny)
     cv2.imshow('img copy', image_copy)
     # cv2.imshow('img copy 2', image_copy2)
-    cv2.imshow('img copy 3', image_copy3)
+    #cv2.imshow('img copy 3', image_copy3)
     cv2.imshow('img copy 4', image_copy4)
-    cv2.imshow('mask', mask)
+    #cv2.imshow('mask', mask)
     cv2.imshow('mask2', mask2)
     cv2.imshow('mask4', mask4)
 

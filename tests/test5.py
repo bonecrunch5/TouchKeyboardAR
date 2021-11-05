@@ -26,6 +26,6 @@ if __name__ == '__main__' :
     # Display images
     cv2.imshow("Source Image", im_src)
     cv2.imshow("Destination Image", im_dst)
-    cv2.imshow("Warped Source Image", im_out)550
+    cv2.imshow("Warped Source Image", im_out)
 
     cv2.waitKey(0)
