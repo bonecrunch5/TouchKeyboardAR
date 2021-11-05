@@ -31,8 +31,6 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
  """
 
-pts_dst = np.array([[1,1],[333,1],[333, 444],[1, 444]])
-
 while(True):
     # Capture frame-by-frame
     success, img = cap.read()
@@ -74,11 +72,14 @@ while(True):
             cv2.drawContours(image_copy, [approx], -1, (0, 255, 0))
 
             if(len(approx) == 4):
+                pts_dst = np.array([[792,1],[792, 380],[1, 380],[1,1]])
                 h, status = cv2.findHomography(approx, pts_dst)
 
-                im_dst = cv2.imread('book2.jpg')
+                # im_dst = cv2.imread('book2.jpg')
+                # im_out = cv2.warpPerspective(img, h, (im_dst.shape[1],im_dst.shape[0]))
                 
-                im_out = cv2.warpPerspective(img, h, (im_dst.shape[1],im_dst.shape[0]))
+                # Hardcoded proportions to be changed in the future
+                im_out = cv2.warpPerspective(img, h, (792, 380))
                 cv2.imshow("Warped Source Image", im_out)
 
     """ cv2.drawContours(image=image_copy, contours=contours, contourIdx=-1,
