@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
-cap = cv2.VideoCapture(2)
+cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
 
 if not (cap.isOpened()):
     print('Could not open video device')
