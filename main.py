@@ -4,6 +4,32 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+def reorder(points):
+    result = np.array([[[0,0]],[[0,0]],[[0,0]],[[0,0]]], ndmin=3)
+
+    mediumPoint1 = [(points[0][0][0] + points[2][0][0])/2, (points[0][0][1] + points[2][0][1])/2]
+    mediumPoint2 = [(points[1][0][0] + points[3][0][0])/2, (points[1][0][1] + points[3][0][1])/2]
+    averageMediumPoint = [(mediumPoint1[0] + mediumPoint2[0])/2, (mediumPoint1[1] + mediumPoint2[1])/2]
+
+    for point in points:
+        if point[0][0] > averageMediumPoint[0] and point[0][1] < averageMediumPoint[1]:
+            result[0] = point
+    for point in points:
+        if point[0][0] > averageMediumPoint[0] and point[0][1] > averageMediumPoint[1]:
+            result[1] = point
+    for point in points:
+        if point[0][0] < averageMediumPoint[0] and point[0][1] > averageMediumPoint[1]:
+            result[2] = point
+    for point in points:
+        if point[0][0] < averageMediumPoint[0] and point[0][1] < averageMediumPoint[1]:
+            result[3] = point
+
+    for point in result:
+        if point[0][0] == 0 and point[0][1] == 0:
+            return points
+    return result
+
+
 cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
 
 if not (cap.isOpened()):
@@ -42,7 +68,7 @@ while(True):
     imgSmooth = cv2.blur(imgGray, (5, 5))
 
     # Threshold
-    (T, imgThresh) = cv2.threshold(imgSmooth, 120, 255, cv2.THRESH_BINARY)
+    (T, imgThresh) = cv2.threshold(imgSmooth, 100, 255, cv2.THRESH_BINARY) #TODO adjust values of threshold
 
     # Find Countours
     imgCanny = cv2.Canny(imgThresh, 100, 200)
@@ -51,29 +77,32 @@ while(True):
         imgCanny, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     # Draw countours in original image
-    image_copy = img.copy()
+    imageCopy = img.copy()
 
-    mask4 = np.zeros_like(image_copy)
-    mask4 = cv2.cvtColor(mask4, cv2.COLOR_BGR2GRAY)
+    # Create Grayscale black image
+    blackImage = np.zeros_like(img)
+    blackImage = cv2.cvtColor(blackImage, cv2.COLOR_BGR2GRAY)
+
     #mask[contours > 0.01*contours.max()] = 255
 
     for contour in contours:
         if cv2.contourArea(contour) > 10000:
-            cv2.drawContours(image=mask4, contours=contour, contourIdx=-1,
+            cv2.drawContours(image=blackImage, contours=contour, contourIdx=-1,
                              color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
             perimeter = cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(contour, 0.05 * perimeter, True)
+            approxPolygon = cv2.approxPolyDP(contour, 0.05 * perimeter, True)
 
-            for point in approx:
+            for point in approxPolygon:
                 x, y = point[0]
-                cv2.circle(image_copy, (x, y), 3, (0, 255, 0), -1)
+                cv2.circle(imageCopy, (x, y), 3, (0, 255, 0), -1)
 
             # drawing skewed rectangle
-            cv2.drawContours(image_copy, [approx], -1, (0, 255, 0))
+            cv2.drawContours(imageCopy, [approxPolygon], -1, (0, 255, 0))
 
-            if(len(approx) == 4):
+            if(len(approxPolygon) == 4):
+                approxPolygon = reorder(approxPolygon)
                 pts_dst = np.array([[792, 1], [792, 380], [1, 380], [1, 1]])
-                h, status = cv2.findHomography(approx, pts_dst)
+                h, status = cv2.findHomography(approxPolygon, pts_dst)
 
                 # Hardcoded proportions to be changed in the future
                 im_out = cv2.warpPerspective(img, h, (792, 380))
@@ -120,28 +149,28 @@ while(True):
                 # mask_out[dst_out > 0.01*dst_out.max()] = 255
                         cv2.imshow('mask_out', mask_out)
 
-    image_copy3 = img.copy()
-    image_copy4 = img.copy()
+    imageCopy3 = img.copy()
+    imageCopy4 = img.copy()
 
     dst = cv2.cornerHarris(imgGray, 2, 3, 0.04)
     dst2 = cv2.cornerHarris(imgSmooth, 2, 3, 0.04)
 
     # --- create a black image to see where those corners occur ---
-    mask = np.zeros_like(image_copy3)
-    mask2 = np.zeros_like(image_copy3)
+    mask = np.zeros_like(imageCopy3)
+    mask2 = np.zeros_like(imageCopy4)
 
     # --- applying a threshold and turning those pixels above the threshold to white ---
     mask[dst > 0.01*dst.max()] = 255
     mask2[dst2 > 0.01*dst2.max()] = 255
 
-    image_copy3[dst > 0.01 * dst.max()] = [0, 0, 255]
-    image_copy4[dst2 > 0.01 * dst2.max()] = [0, 0, 255]
+    imageCopy3[dst > 0.01 * dst.max()] = [0, 0, 255]
+    imageCopy4[dst2 > 0.01 * dst2.max()] = [0, 0, 255]
 
     #corners = cv2.goodFeaturesToTrack(mask4, 10000, 0.3, 100)
-    corners = cv2.cornerHarris(mask4, 2, 3, 0.04)
+    corners = cv2.cornerHarris(blackImage, 2, 3, 0.04)
 
     # --- create a black image to see where those corners occur ---
-    # mask4 = np.zeros_like(image_copy4)
+    # mask4 = np.zeros_like(imageCopy4)
 
     # # --- applying a threshold and turning those pixels above the threshold to white ---
     # mask4[dst > 0.01*dst.max()] = 255
@@ -150,23 +179,23 @@ while(True):
     """ if corners is not None :
         for i in range(1, len(corners)):
             print(corners[i,0,0])
-            cv2.circle(image_copy3, (int(corners[i,0,0]), int(corners[i,0,1])), 7, (0,255,0), 2)
+            cv2.circle(imageCopy3, (int(corners[i,0,0]), int(corners[i,0,1])), 7, (0,255,0), 2)
     """
     # Display the resulting frame
     cv2.imshow('img',img)
     #cv2.imshow('img gray',imgGray)
     #cv2.imshow('img smooth',imgSmooth)
     #cv2.imshow('img threshold',imgThresh)
-    #cv2.imshow('img canny', imgCanny)
-    #cv2.imshow('img copy', image_copy)
-    #cv2.imshow('img copy 2', image_copy2)
-    #cv2.imshow('img copy 3', image_copy3)
-    #cv2.imshow('img copy 4', image_copy4)
+    cv2.imshow('img canny', imgCanny)
+    #cv2.imshow('img copy', imageCopy)
+    #cv2.imshow('img copy 2', imageCopy2)
+    #cv2.imshow('img copy 3', imageCopy3)
+    #cv2.imshow('img copy 4', imageCopy4)
     #cv2.imshow('mask', mask)
     #cv2.imshow('mask2', mask2)
     #cv2.imshow('mask4', mask4)
 
-    # cv2.imshow('img copy 4', image_copy4)
+    # cv2.imshow('img copy 4', imageCopy4)
 
     # Waits for a user input to quit the application
     if cv2.waitKey(1) & 0xFF == ord('q'):
