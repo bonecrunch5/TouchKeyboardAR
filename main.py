@@ -68,7 +68,7 @@ while(True):
     imgSmooth = cv2.blur(imgGray, (5, 5))
 
     # Threshold
-    (T, imgThresh) = cv2.threshold(imgSmooth, 120, 255, cv2.THRESH_BINARY)
+    (T, imgThresh) = cv2.threshold(imgSmooth, 100, 255, cv2.THRESH_BINARY) #TODO adjust values of threshold
 
     # Find Countours
     imgCanny = cv2.Canny(imgThresh, 100, 200)
@@ -186,7 +186,7 @@ while(True):
     #cv2.imshow('img gray',imgGray)
     #cv2.imshow('img smooth',imgSmooth)
     #cv2.imshow('img threshold',imgThresh)
-    #cv2.imshow('img canny', imgCanny)
+    cv2.imshow('img canny', imgCanny)
     #cv2.imshow('img copy', imageCopy)
     #cv2.imshow('img copy 2', imageCopy2)
     #cv2.imshow('img copy 3', imageCopy3)
