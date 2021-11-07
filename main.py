@@ -4,6 +4,32 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+def reorder(points):
+    result = np.array([[[0,0]],[[0,0]],[[0,0]],[[0,0]]], ndmin=3)
+
+    mediumPoint1 = [(points[0][0][0] + points[2][0][0])/2, (points[0][0][1] + points[2][0][1])/2]
+    mediumPoint2 = [(points[1][0][0] + points[3][0][0])/2, (points[1][0][1] + points[3][0][1])/2]
+    averageMediumPoint = [(mediumPoint1[0] + mediumPoint2[0])/2, (mediumPoint1[1] + mediumPoint2[1])/2]
+
+    for point in points:
+        if point[0][0] > averageMediumPoint[0] and point[0][1] < averageMediumPoint[1]:
+            result[0] = point
+    for point in points:
+        if point[0][0] > averageMediumPoint[0] and point[0][1] > averageMediumPoint[1]:
+            result[1] = point
+    for point in points:
+        if point[0][0] < averageMediumPoint[0] and point[0][1] > averageMediumPoint[1]:
+            result[2] = point
+    for point in points:
+        if point[0][0] < averageMediumPoint[0] and point[0][1] < averageMediumPoint[1]:
+            result[3] = point
+
+    for point in result:
+        if point[0][0] == 0 and point[0][1] == 0:
+            return points
+    return result
+
+
 cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
 
 if not (cap.isOpened()):
@@ -72,9 +98,9 @@ while(True):
 
             # drawing skewed rectangle
             cv2.drawContours(imageCopy, [approxPolygon], -1, (0, 255, 0))
-            cv2.drawContours(img, [approxPolygon], -1, (0, 255, 0))
 
             if(len(approxPolygon) == 4):
+                approxPolygon = reorder(approxPolygon)
                 pts_dst = np.array([[792, 1], [792, 380], [1, 380], [1, 1]])
                 h, status = cv2.findHomography(approxPolygon, pts_dst)
 
