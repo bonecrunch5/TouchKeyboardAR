@@ -86,7 +86,7 @@ while(True):
     #mask[contours > 0.01*contours.max()] = 255
 
     for contour in contours:
-        if cv2.contourArea(contour) > 10000:
+        if cv2.contourArea(contour,True) > 10000:
             cv2.drawContours(image=blackImage, contours=contour, contourIdx=-1,
                              color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
             perimeter = cv2.arcLength(contour, True)
@@ -130,25 +130,29 @@ while(True):
                 mask_out = np.zeros_like(im_out_copy)
                 mask_out = cv2.cvtColor(mask_out, cv2.COLOR_BGR2GRAY)
 
+                counter=0
                 for contour_out in contours_out:
-                    if cv2.contourArea(contour_out) > 700:
+                   
+                    if cv2.contourArea(contour_out, True) > 700:
+                        counter+=1
                         cv2.drawContours(image=mask_out, contours=contour_out, contourIdx=-1,
                              color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
                         perimeter_out = cv2.arcLength(contour_out, True)
-                        approx_out = cv2.approxPolyDP(contour_out, 0.05 * perimeter_out, True)
+                        approx_out = cv2.approxPolyDP(contour_out, 0.04 * perimeter_out, True)
 
                         for point_out in approx_out:
                             x, y = point_out[0]
                             cv2.circle(im_out_copy, (x, y), 3, (0, 255, 0), -1)
-
+                    
                 # dst_out = cv2.cornerHarris(imgSmooth_out, 2, 3, 0.04)
 
                 # im_out_copy = im_out.copy()
 
                 # mask_out = np.zeros_like(im_out_copy)
                 # mask_out[dst_out > 0.01*dst_out.max()] = 255
+                        cv2.imshow('im_out_copy', im_out_copy)
                         cv2.imshow('mask_out', mask_out)
-
+                print(counter)
     imageCopy3 = img.copy()
     imageCopy4 = img.copy()
 
@@ -186,11 +190,13 @@ while(True):
     #cv2.imshow('img gray',imgGray)
     #cv2.imshow('img smooth',imgSmooth)
     #cv2.imshow('img threshold',imgThresh)
-    cv2.imshow('img canny', imgCanny)
+    #cv2.imshow('img canny', imgCanny)
     #cv2.imshow('img copy', imageCopy)
     #cv2.imshow('img copy 2', imageCopy2)
     #cv2.imshow('img copy 3', imageCopy3)
     #cv2.imshow('img copy 4', imageCopy4)
+    #cv2.imshow('blackImage', blackImage)
+
     #cv2.imshow('mask', mask)
     #cv2.imshow('mask2', mask2)
     #cv2.imshow('mask4', mask4)
