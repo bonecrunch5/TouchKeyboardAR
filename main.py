@@ -5,35 +5,28 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
+def distance2points(point1, point2):
+    return np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
+
 
 def reorder(points):  # TODO might have to redo this
-    result = np.array([[[0, 0]], [[0, 0]], [[0, 0]], [[0, 0]]], ndmin=3)
-
-    mediumPoint1 = [(points[0][0][0] + points[2][0][0])/2,
-                    (points[0][0][1] + points[2][0][1])/2]
-    mediumPoint2 = [(points[1][0][0] + points[3][0][0])/2,
-                    (points[1][0][1] + points[3][0][1])/2]
-    averageMediumPoint = [(mediumPoint1[0] + mediumPoint2[0])/2,
-                          (mediumPoint1[1] + mediumPoint2[1])/2]
-
+    distances = []
     for point in points:
-        if point[0][0] > averageMediumPoint[0] and point[0][1] < averageMediumPoint[1]:
-            result[0] = point
-    for point in points:
-        if point[0][0] > averageMediumPoint[0] and point[0][1] > averageMediumPoint[1]:
-            result[1] = point
-    for point in points:
-        if point[0][0] < averageMediumPoint[0] and point[0][1] > averageMediumPoint[1]:
-            result[2] = point
-    for point in points:
-        if point[0][0] < averageMediumPoint[0] and point[0][1] < averageMediumPoint[1]:
-            result[3] = point
+        distances.append(distance2points(point[0],[600,0]))
+    
+    minDistance = distances[0]
+    minDistanceIndex = 0
 
-    for point in result:
-        if point[0][0] == 0 and point[0][1] == 0:
-            return points
-    return result
+    for x in range(1,4):
+        if distances[x] < minDistance:
+            minDistance = distances[x]
+            minDistanceIndex = x
 
+    newPoints = np.array([[[0, 0]], [[0, 0]], [[0, 0]], [[0, 0]]], ndmin=3)
+    for x in range(4):
+        newPoints[x] = points[(x + minDistanceIndex)%4]
+
+    return newPoints
 
 cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
 
