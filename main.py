@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import json
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -56,7 +57,8 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
     Note2: There's some code doing nothing, in the future we need to clean that, but by now it's there if it's needed
 
  """
-
+jsonOutput = {}
+imgKeyboard = None
 while(True):
     # Capture frame-by-frame
     success, img = cap.read()
@@ -107,7 +109,7 @@ while(True):
                 # Hardcoded proportions to be changed in the future
                 im_out = cv2.warpPerspective(img, h, (792, 380))
                 cv2.imshow("Warped Source Image", im_out)
-
+                imgKeyboard = im_out.copy()
                 # Convert from RGB to grayscale
                 imgGray_out = cv2.cvtColor(im_out, cv2.COLOR_BGR2GRAY)
 
@@ -131,6 +133,7 @@ while(True):
                 mask_out = cv2.cvtColor(mask_out, cv2.COLOR_BGR2GRAY)
 
                 counter=0
+                jsonObject = {"keys":[]}
                 for contour_out in contours_out:
                    
                     if cv2.contourArea(contour_out, True) > 700:
@@ -139,20 +142,24 @@ while(True):
                              color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
                         perimeter_out = cv2.arcLength(contour_out, True)
                         approx_out = cv2.approxPolyDP(contour_out, 0.04 * perimeter_out, True)
-
+                        
+                        jsonKey = []
                         for point_out in approx_out:
                             x, y = point_out[0]
                             cv2.circle(im_out_copy, (x, y), 3, (0, 255, 0), -1)
-                    
-                # dst_out = cv2.cornerHarris(imgSmooth_out, 2, 3, 0.04)
 
-                # im_out_copy = im_out.copy()
+                            jsonKey.append([int(x),int(y)])
 
-                # mask_out = np.zeros_like(im_out_copy)
-                # mask_out[dst_out > 0.01*dst_out.max()] = 255
+                        jsonObject['keys'].append(jsonKey)
+
+                
                         cv2.imshow('im_out_copy', im_out_copy)
                         cv2.imshow('mask_out', mask_out)
                 print(counter)
+                jsonOutput = json.dumps(jsonObject)
+
+                              
+
     imageCopy3 = img.copy()
     imageCopy4 = img.copy()
 
@@ -211,5 +218,15 @@ while(True):
 
 
 # When everything done, release the capture
+if not os.path.exists("generated"):
+    os.mkdir("generated")
+f=open("generated/keys.json","w")
+f.write(jsonOutput)
+f.close()
+
+cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboard)
+                  
+
+
 cap.release()
 cv2.destroyAllWindows()
