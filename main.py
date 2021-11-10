@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 numKeys = -1
-keys = []
+keySymbols = []
 
 # Get arguments (number of keys or file with list of keys)
 if len(sys.argv) > 1:
@@ -25,14 +25,24 @@ if len(sys.argv) > 1:
                 stripedLine = line.strip()
 
                 if len(stripedLine) > 0:
-                    keys.append(stripedLine)
+                    keySymbols.append(stripedLine)
 
-            numKeys = len(keys)
+            numKeys = len(keySymbols)
         except IOError:
             print("Could not open file " + keysFile)
             
-print(numKeys)
-print(keys)
+def lessThanPoint(point1, point2, offset):
+    if (abs(point1['y']-point2['y']) < offset):
+        return point1['x']-point2['x'] < 0
+    return point1['y']-point2['y'] < 0
+
+def bubbleSortKeys(keysArray):
+    n = len(keysArray)
+ 
+    for i in range(n-1):
+        for j in range(0, n-i-1):
+            if lessThanPoint(keysArray[j + 1]['point'],keysArray[j]['point'], 10):
+                keysArray[j], keysArray[j + 1] = keysArray[j + 1], keysArray[j]
 
 def distance2points(point1, point2):
     return np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
@@ -88,7 +98,6 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 jsonOutput = {}
 imgKeyboard = None
 imgKeyboardFinal = None
-
 
 def getContours(image):
     # Convert from RGB to grayscale
@@ -158,8 +167,6 @@ while(True):
     blackImage = np.zeros_like(img)
     blackImage = cv2.cvtColor(blackImage, cv2.COLOR_BGR2GRAY)
 
-    #mask[contours > 0.01*contours.max()] = 255
-
     for contour in contours:
         if cv2.contourArea(contour, True) > 10000:
             cv2.drawContours(image=blackImage, contours=contour, contourIdx=-1,
@@ -184,11 +191,42 @@ while(True):
 
                 jsonObject = processKeys(contours_out)
 
+                # If number of keys is as expected, proceed
                 if numKeys == -1 or len(jsonObject['keys']) == numKeys:
-                    imgKeyboardFinal = imgKeyboard
-                    jsonOutput = jsonObject
+                    # Will hold the keys with their index on jsonOutput and their top left corner
+                    keysTopLeft = []
 
-                    cv2.imshow("Frontal Keyboard Image", imgKeyboardFinal)
+                    # Get top left corner of each key and store in keysTopLeft array
+                    for i, key in enumerate(jsonObject['keys']):
+                        keyPoints = key['points']
+
+                        corners = []
+
+                        for point in keyPoints:
+                            corners.append({'point': point})
+
+                        bubbleSortKeys(corners)
+
+                        keysTopLeft.append({'index': i, 'point': corners[0]['point']})
+
+                    # Order keysTopLeft array by key, based on keyboard layout
+                    # Compare y. If y is same (difference between points is lower than N), compare x.
+                    bubbleSortKeys(keysTopLeft)
+
+                    keyPlacementImg = imgKeyboard.copy()
+
+                    # Add symbol info to jsonOutput (also show symbols on image display)
+                    for i, symbol in enumerate(keySymbols):
+                            key = keysTopLeft[i]
+                            
+                            jsonObject['keys'][key['index']]['symbol'] = symbol
+
+                            cv2.putText(keyPlacementImg, symbol, (key['point']['x'], key['point']['y']), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1, cv2.LINE_AA)
+
+                    cv2.imshow("Frontal Keyboard Image", keyPlacementImg)
+                    
+                    imgKeyboardFinal = imgKeyboard
+                    jsonOutput = jsonObject 
                 else:
                     print("wrong number of keys")
 
@@ -199,21 +237,10 @@ while(True):
     #cv2.imshow('img threshold',imgThresh)
     #cv2.imshow('img canny', imgCanny)
     #cv2.imshow('img copy', imageCopy)
-    #cv2.imshow('img copy 2', imageCopy2)
-    #cv2.imshow('img copy 3', imageCopy3)
-    #cv2.imshow('img copy 4', imageCopy4)
     #cv2.imshow('blackImage', blackImage)
-
-    #cv2.imshow('mask', mask)
-    #cv2.imshow('mask2', mask2)
-    #cv2.imshow('mask4', mask4)
-
-    # cv2.imshow('img copy 4', imageCopy4)
 
     # Waits for a user input to quit the application
     if cv2.waitKey(1) & 0xFF == ord('q'):
-        # print(contours)
-
         break
 
 # Save info
