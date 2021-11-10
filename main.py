@@ -1,15 +1,43 @@
 import cv2
 import numpy as np
+import sys
 import os
 import json
 from dotenv import load_dotenv
 load_dotenv()
 
+numKeys = -1
+keys = []
+
+# Get arguments (number of keys or file with list of keys)
+if len(sys.argv) > 1:
+    argument = sys.argv[1]
+
+    try:
+        numKeys = int(argument)
+    except ValueError:
+        keysFile = argument
+
+        try:
+            filePointer = open(keysFile, "r")
+
+            for line in filePointer:
+                stripedLine = line.strip()
+
+                if len(stripedLine) > 0:
+                    keys.append(stripedLine)
+
+            numKeys = len(keys)
+        except IOError:
+            print("Could not open file " + keysFile)
+            
+print(numKeys)
+print(keys)
+
 def distance2points(point1, point2):
     return np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
 
-
-def reorder(points):  # TODO might have to redo this
+def reorder(points):
     distances = []
     for point in points:
         distances.append(distance2points(point[0],[600,0]))
@@ -59,6 +87,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
  """
 jsonOutput = {}
 imgKeyboard = None
+imgKeyboardFinal = None
 
 
 def getContours(image):
@@ -82,11 +111,9 @@ def getContours(image):
 
 
 def processKeys(contours_out):
-    counter = 0
-    jsonObject = {"keys": []}
+
     for contour_out in contours_out:
         if cv2.contourArea(contour_out, True) > 700:
-            counter += 1
             cv2.drawContours(image=mask_out, contours=contour_out, contourIdx=-1,
                              color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
             perimeter_out = cv2.arcLength(contour_out, True)
@@ -104,7 +131,7 @@ def processKeys(contours_out):
 
     cv2.imshow('im_out_copy', im_out_copy)
     cv2.imshow('mask_out', mask_out)
-    print(counter)
+
     return jsonObject
 
 
@@ -116,8 +143,6 @@ def processHomography(approxPolygon):
     # Hardcoded proportions to be changed in the future
     global imgKeyboard
     imgKeyboard = cv2.warpPerspective(img, homographyMatrix, (792, 380))
-    cv2.imshow("Warped Source Image", imgKeyboard)
-
 
 while(True):
     # Capture frame-by-frame
@@ -157,7 +182,14 @@ while(True):
                 mask_out = cv2.cvtColor(mask_out, cv2.COLOR_BGR2GRAY)
 
                 jsonObject = processKeys(contours_out)
-                jsonOutput = json.dumps(jsonObject)
+
+                if numKeys == -1 or len(jsonObject['keys']) == numKeys:
+                    imgKeyboardFinal = imgKeyboard
+                    jsonOutput = jsonObject
+
+                    cv2.imshow("Frontal Keyboard Image", imgKeyboardFinal)
+                else:
+                    print("wrong number of keys")
 
     # Display the resulting frame
     cv2.imshow('img', img)
@@ -183,16 +215,15 @@ while(True):
 
         break
 
-
-# When everything done, release the capture
+# Save info
 if not os.path.exists("generated"):
     os.mkdir("generated")
 f = open("generated/keys.json", "w")
-f.write(jsonOutput)
+f.write(json.dumps(jsonOutput))
 f.close()
 
-cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboard)
+cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboardFinal)
 
-
+# When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
