@@ -112,6 +112,7 @@ def getContours(image):
 
 def processKeys(contours_out):
 
+    jsonObject = {'keys': []}
     for contour_out in contours_out:
         if cv2.contourArea(contour_out, True) > 700:
             cv2.drawContours(image=mask_out, contours=contour_out, contourIdx=-1,
@@ -120,12 +121,12 @@ def processKeys(contours_out):
             approx_out = cv2.approxPolyDP(
                 contour_out, 0.04 * perimeter_out, True)
 
-            jsonKey = []
+            jsonKey = { 'points': [], 'symbol': None}
             for point_out in approx_out:
                 x, y = point_out[0]
                 cv2.circle(im_out_copy, (x, y), 3, (0, 255, 0), -1)
 
-                jsonKey.append([int(x), int(y)])
+                jsonKey['points'].append({ "x": int(x), "y": int(y)})
 
             jsonObject['keys'].append(jsonKey)
 
