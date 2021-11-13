@@ -125,6 +125,22 @@ while(True):
         if(homographyMatrix_Warp is not None):
             imgKeyboard = cv2.warpPerspective(captImg, homographyMatrix_Warp, (prepImgCols, prepImgRows))
 
+            for key in prepKeys['keys']:
+                if(os.environ.get('SHOW_KEY_CORNERS').upper() == 'TRUE'):
+                    for point in key['points']:
+                        cv2.circle(imgKeyboard, (point['x'], point['y']), 2, (0, 255, 0), -1)
+
+                if(os.environ.get('SHOW_KEY_EDGES').upper() == 'TRUE'):
+                    cv2.line(imgKeyboard, (key['points'][len(key['points']) - 1]['x'], key['points'][len(key['points']) - 1]['y']), (key['points'][0]['x'], key['points'][0]['y']), (0, 255, 0), 2)
+
+                    for i in range(0, len(key['points']) - 1):
+                        cv2.line(imgKeyboard, (key['points'][i]['x'], key['points'][i]['y']), (key['points'][i + 1]['x'], key['points'][i + 1]['y']), (0, 255, 0), 2)
+
+                if(os.environ.get('SHOW_KEY_LABELS').upper() == 'TRUE'):
+                    cv2.putText(imgKeyboard, key['symbol'], (key['points'][0]['x'], key['points'][0]['y']),
+                        cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1, cv2.LINE_AA)
+
+
             # Show image with only keyboard
             cv2.imshow("imgKeyboard", imgKeyboard)
 
