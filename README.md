@@ -10,7 +10,7 @@ Create a `.env` file with the same structure as `.envsample` before running the 
 
 ## Running
 
-The `preparation.py` program is used to get the necessary data from a keyboard to be used later. It receives an optional argument which is a plain text file with the ordered list of symbols on the keyboard (from left to right, up to down). By providing this file, the `preparation.py` will output every file needed for the next program in the `generated` folder. If you don't want to provide that file, check [**Creating the keys list file manually**](##Creating-the-keys-list-file-manually).
+The `preparation.py` program is used to get the necessary data from a keyboard to be used later. It receives an optional argument which is a plain text file with the ordered list of symbols on the keyboard (from left to right, up to down). By providing this file, the `preparation.py` will output every file needed for the next program in the `generated` folder. If you don't want to provide that file, check [**Creating the keys list file manually**](#Creating-the-keys-list-file-manually).
 
 ```
 python preparation.py <key-symbol-list-file-path>
