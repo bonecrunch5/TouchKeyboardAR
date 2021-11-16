@@ -152,3 +152,6 @@ while(True):
     # Waits for a user input to quit the application
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+    
+cap.release()
+cv2.destroyAllWindows()
