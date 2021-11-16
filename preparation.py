@@ -41,7 +41,7 @@ def bubbleSortKeys(keysArray):
  
     for i in range(n-1):
         for j in range(0, n-i-1):
-            if lessThanPoint(keysArray[j + 1]['point'],keysArray[j]['point'], 10):
+            if lessThanPoint(keysArray[j + 1]['point'],keysArray[j]['point'], 30):
                 keysArray[j], keysArray[j + 1] = keysArray[j + 1], keysArray[j]
 
 def distance2points(point1, point2):
@@ -66,7 +66,7 @@ def reorder(points):
 
     return newPoints
 
-cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
+cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')), cv2.CAP_DSHOW)
 
 if not (cap.isOpened()):
     print('Could not open video device')
@@ -229,9 +229,7 @@ while(True):
                     cv2.imshow("Frontal Keyboard Image", keyPlacementImg)
                     
                     imgKeyboardFinal = imgKeyboard
-                    jsonOutput = jsonObject 
-                else:
-                    print("wrong number of keys")
+                    jsonOutput = jsonObject
 
     # Display the resulting frame
     cv2.imshow('img', img)
@@ -247,14 +245,16 @@ while(True):
         break
 
 # Save info
-if not os.path.exists("generated"):
-    os.mkdir("generated")
-f = open("generated/keys.json", "w")
-f.write(json.dumps(jsonOutput))
-f.close()
-
 if (imgKeyboardFinal is not None):
+    if not os.path.exists("generated"):
+        os.mkdir("generated")
+    f = open("generated/keys.json", "w")
+    f.write(json.dumps(jsonOutput))
+    f.close()
     cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboardFinal)
+    print("Keyboard and keys detected successfully")
+else:
+    print("No keyboard was detected")
 
 # When everything done, release the capture
 cap.release()

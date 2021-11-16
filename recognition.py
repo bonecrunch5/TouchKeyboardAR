@@ -35,7 +35,7 @@ except (IOError, json.decoder.JSONDecodeError) as ex:
     exit()
 
 # Start video capture
-cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
+cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')), cv2.CAP_DSHOW)
 
 if not (cap.isOpened()):
     print('Could not open video device')
@@ -78,8 +78,13 @@ while(True):
     captKeypoints, captDescriptors = sift.detectAndCompute(captImg,None)
 
     # Match keypoints
-    matches = matcher.knnMatch(prepDescriptors, captDescriptors,k=2)
-
+    if (captDescriptors is not None):
+        matches = matcher.knnMatch(prepDescriptors, captDescriptors,k=2)
+    else:
+        print("captDescriptors is None")
+        cap.release()
+        cv2.destroyAllWindows()
+        exit()
     # Need to draw only good matches, so create a mask
     matchesMask = [[0,0] for i in range(len(matches))]
 
