@@ -35,7 +35,7 @@ except (IOError, json.decoder.JSONDecodeError) as ex:
     exit()
 
 # Start video capture
-cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')), cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
 
 if not (cap.isOpened()):
     print('Could not open video device')
@@ -152,6 +152,6 @@ while(True):
     # Waits for a user input to quit the application
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-    
+
 cap.release()
 cv2.destroyAllWindows()

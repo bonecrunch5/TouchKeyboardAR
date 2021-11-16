@@ -66,7 +66,7 @@ def reorder(points):
 
     return newPoints
 
-cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')), cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
 
 if not (cap.isOpened()):
     print('Could not open video device')
