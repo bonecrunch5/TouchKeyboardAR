@@ -253,7 +253,8 @@ f = open("generated/keys.json", "w")
 f.write(json.dumps(jsonOutput))
 f.close()
 
-cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboardFinal)
+if (imgKeyboardFinal is not None):
+    cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboardFinal)
 
 # When everything done, release the capture
 cap.release()
