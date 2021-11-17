@@ -77,14 +77,15 @@ while(True):
     # Detect the keypoints and compute descriptors
     captKeypoints, captDescriptors = sift.detectAndCompute(captImg,None)
 
+    # Show the camera image
+    cv2.imshow('img', captImg)
+
     # Match keypoints
-    if (captDescriptors is not None):
+    if (captDescriptors is not None and len(captDescriptors) > 1):
         matches = matcher.knnMatch(prepDescriptors, captDescriptors,k=2)
     else:
-        print("captDescriptors is None")
-        cap.release()
-        cv2.destroyAllWindows()
-        exit()
+        continue
+
     # Need to draw only good matches, so create a mask
     matchesMask = [[0,0] for i in range(len(matches))]
 
