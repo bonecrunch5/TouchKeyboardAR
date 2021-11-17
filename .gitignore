@@ -134,3 +134,6 @@ opencv-3.4.1/
 opencv-3.4.16/
 generated/
 inputFiles/
+
+# VS Code config files
+.vscode
