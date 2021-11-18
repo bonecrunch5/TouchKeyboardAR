@@ -249,12 +249,25 @@ while(True):
                 if biggestContour is not None:
                     approxPolygon = cv2.approxPolyDP(biggestContour, 0.05 * maxPerimeter, True)
 
-                    if(len(approxPolygon) > 3):
-                        for point in approxPolygon:
-                            x, y = point[0]
-                            cv2.circle(imgKeyboardCopy, (x, y), 3, (255, 0, 0), -1)
-                
-                        cv2.drawContours(imgKeyboardCopy, [approxPolygon], -1, (0, 255, 0))
+                    totalX = 0
+                    totalY = 0
+
+                    for point in approxPolygon:
+                        x, y = point[0]
+
+                        totalX += x
+                        totalY += y
+
+                        cv2.circle(imgKeyboardCopy, (x, y), 3, (0, 0, 255), -1)
+
+                    avgX = int(totalX / len(approxPolygon))
+                    avgY = int(totalY / len(approxPolygon))
+
+                    cv2.circle(imgKeyboardCopy, (avgX, avgY), 5, (255, 0, 0), -1)
+
+                    hull = cv2.convexHull(biggestContour)
+
+                    # cv2.drawContours(imgKeyboardCopy, [hull], -1, (0, 255, 0))
 
                     cv2.imshow('imgKeyboardCopy', imgKeyboardCopy)
 
