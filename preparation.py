@@ -116,6 +116,11 @@ def getContours(image):
     contours, _ = cv2.findContours(
         imgCanny, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
+    # cv2.imshow('img gray',imgGray)
+    # cv2.imshow('img smooth',imgSmooth)
+    # cv2.imshow('img threshold',imgThresh)
+    # cv2.imshow('img canny', imgCanny)
+
     return contours
 
 
@@ -233,10 +238,6 @@ while(True):
 
     # Display the resulting frame
     cv2.imshow('img', img)
-    #cv2.imshow('img gray',imgGray)
-    #cv2.imshow('img smooth',imgSmooth)
-    #cv2.imshow('img threshold',imgThresh)
-    #cv2.imshow('img canny', imgCanny)
     #cv2.imshow('img copy', imageCopy)
     #cv2.imshow('blackImage', blackImage)
 
