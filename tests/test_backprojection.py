@@ -71,6 +71,18 @@ cropImgHist = cv2.calcHist([cropImgHsv],[0, 1], None, [12, 12], [0, 180, 0, 256]
 while True:
     _, captImg = cap.read()
 
+    cv2.imshow('cropped', cropImg)
+    cv2.imshow('res', captImg)
+
+    # Waits for a user input to proceed
+    if cv2.waitKey(1) & 0xFF == 32:
+        break
+
+bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, detectShadows=False)
+
+while True:
+    _, captImg = cap.read()
+
     captImgTarget = captImg.copy()
     captImgTargetHsv = cv2.cvtColor(captImgTarget,cv2.COLOR_BGR2HSV)
 
@@ -84,10 +96,24 @@ while True:
     # threshold and binary AND
     ret,thresh = cv2.threshold(dst,50,255,0)
     thresh = cv2.merge((thresh,thresh,thresh))
-    res = cv2.bitwise_and(captImg,thresh)
+    bgSubMask = cv2.bitwise_and(captImgTarget,thresh)
 
-    res = np.vstack((captImgTarget,thresh,res))
+    # res = np.vstack((captImgTarget,thresh,res))
+
+    fgmask = bgSubtractor.apply(captImgTarget, learningRate=0)    
+
+    kernel = np.ones((4, 4), np.uint8)
     
+    # The effect is to remove the noise in the background
+    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=2)
+    # To close the holes in the objects
+    fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    
+    # Apply the mask on the frame and return
+    histMask = cv2.bitwise_and(captImgTarget, captImgTarget, mask=fgmask)
+
+    res = cv2.bitwise_and(histMask, bgSubMask)
+
     # resSmooth = cv2.blur(res, (5, 5))
 
     cv2.imshow('cropped', cropImg)
