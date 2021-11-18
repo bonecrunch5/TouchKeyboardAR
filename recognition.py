@@ -71,9 +71,68 @@ matcher = cv2.FlannBasedMatcher(index_params, search_params)
 bgSubtractor = None
 cropImgHist = None
 
+def getContours(image):
+    # Convert from RGB to grayscale
+    imgGray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Smoothing
+    imgSmooth = cv2.blur(imgGray, (5, 5))
+
+    # Threshold
+    (_, imgThresh) = cv2.threshold(imgSmooth, 100, 255,
+                                   cv2.THRESH_BINARY)  # TODO adjust values of threshold
+
+    # Find Countours
+    imgCanny = cv2.Canny(imgThresh, 100, 200)
+
+    contours, _ = cv2.findContours(
+        imgCanny, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+    # cv2.imshow('img gray',imgGray)
+    # cv2.imshow('img smooth',imgSmooth)
+    # cv2.imshow('img threshold',imgThresh)
+    # cv2.imshow('img canny', imgCanny)
+
+    return contours
+
 while(True):
     # Capture frame-by-frame
     _, captImg = cap.read()
+
+    captImgSquare = captImg.copy()
+
+    captHeight, captWidth, _ = captImg.shape
+    squareSide = 80
+    
+    captHeightHalf = int(captHeight / 2)
+    captWidthHalf = int(captWidth / 2)
+    squareSideHalf = int(squareSide / 2)
+
+    topLeft = (captWidthHalf - squareSideHalf, captHeightHalf - squareSideHalf)
+    bottomLeft = (captWidthHalf - squareSideHalf, captHeightHalf + squareSideHalf)
+    topRight = (captWidthHalf + squareSideHalf, captHeightHalf - squareSideHalf)
+    bottomRight = (captWidthHalf + squareSideHalf, captHeightHalf + squareSideHalf)
+
+
+    cv2.line(captImgSquare,
+            topLeft,
+            bottomLeft,
+            (0, 255, 0), 2)
+
+    cv2.line(captImgSquare,
+            bottomLeft,
+            bottomRight,
+            (0, 255, 0), 2)
+
+    cv2.line(captImgSquare,
+            bottomRight,
+            topRight,
+            (0, 255, 0), 2)
+    
+    cv2.line(captImgSquare,
+            topRight,
+            topLeft,
+            (0, 255, 0), 2)
 
     # Convert from RGB to grayscale
     captImgGrayscale = cv2.cvtColor(captImg, cv2.COLOR_BGR2GRAY)
@@ -82,7 +141,7 @@ while(True):
     captKeypoints, captDescriptors = sift.detectAndCompute(captImg,None)
 
     # Show the camera image
-    cv2.imshow('img', captImg)
+    cv2.imshow('img', captImgSquare)
 
     # Match keypoints
     if (captDescriptors is not None and len(captDescriptors) > 1):
@@ -170,7 +229,34 @@ while(True):
 
             if histMask is not None and bgSubMask is not None:
                 res = cv2.bitwise_and(histMask, bgSubMask)
+                kernel = np.ones((10,10),np.uint8)
+                res = cv2.morphologyEx(res, cv2.MORPH_CLOSE, kernel)
+                res = cv2.erode(res,kernel,iterations = 1)
                 cv2.imshow("res", res)
+
+                fingerContours = getContours(res)
+
+                maxPerimeter = 0
+                biggestContour = None
+                
+                for contour in fingerContours:
+                    perimeter = cv2.arcLength(contour, False)
+
+                    if perimeter > maxPerimeter:
+                        maxPerimeter = perimeter
+                        biggestContour = contour
+
+                if biggestContour is not None:
+                    approxPolygon = cv2.approxPolyDP(biggestContour, 0.05 * maxPerimeter, True)
+
+                    if(len(approxPolygon) > 3):
+                        for point in approxPolygon:
+                            x, y = point[0]
+                            cv2.circle(imgKeyboardCopy, (x, y), 3, (255, 0, 0), -1)
+                
+                        cv2.drawContours(imgKeyboardCopy, [approxPolygon], -1, (0, 255, 0))
+
+                    cv2.imshow('imgKeyboardCopy', imgKeyboardCopy)
 
             for key in prepKeys['keys']:
                 if(os.environ.get('SHOW_KEY_CORNERS').upper() == 'TRUE'):
@@ -196,18 +282,6 @@ while(True):
     if k == ord('b'):
         bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, detectShadows=False)
     elif k == ord('h'):
-        captHeight, captWidth, _ = captImg.shape
-        squareSide = 80
-        
-        captHeightHalf = int(captHeight / 2)
-        captWidthHalf = int(captWidth / 2)
-        squareSideHalf = int(squareSide / 2)
-
-        topLeft = (captWidthHalf - squareSideHalf, captHeightHalf - squareSideHalf)
-        bottomLeft = (captWidthHalf - squareSideHalf, captHeightHalf + squareSideHalf)
-        topRight = (captWidthHalf + squareSideHalf, captHeightHalf - squareSideHalf)
-        bottomRight = (captWidthHalf + squareSideHalf, captHeightHalf + squareSideHalf)
-
         cropImg = captImg[topLeft[1]:bottomLeft[1], topLeft[0]:topRight[0]]
         cropImgHsv = cv2.cvtColor(cropImg,cv2.COLOR_BGR2HSV)
 
