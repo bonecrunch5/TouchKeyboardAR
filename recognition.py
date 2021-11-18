@@ -10,6 +10,7 @@ load_dotenv()
 prepImgPath = './generated/imgKeyboard.jpg'
 prepKeysPath = './generated/keys.json'
 
+# Load arguments
 if len(sys.argv) > 1:
     prepImgPath = sys.argv[1]
 
@@ -66,6 +67,9 @@ index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
 search_params = dict(checks=50)   # or pass empty dictionary
 
 matcher = cv2.FlannBasedMatcher(index_params, search_params)
+
+bgSubtractor = None
+cropImgHist = None
 
 while(True):
     # Capture frame-by-frame
@@ -131,6 +135,43 @@ while(True):
         if(homographyMatrix_Warp is not None):
             imgKeyboard = cv2.warpPerspective(captImg, homographyMatrix_Warp, (prepImgCols, prepImgRows))
 
+            imgKeyboardCopy = imgKeyboard.copy()
+
+            histMask = None
+            bgSubMask = None
+
+            if bgSubtractor is not None:
+                fgmask = bgSubtractor.apply(imgKeyboardCopy, learningRate=0)    
+
+                kernel = np.ones((4, 4), np.uint8)
+                
+                # The effect is to remove the noise in the background
+                fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_OPEN, kernel, iterations=2)
+                # To close the holes in the objects
+                fgmask = cv2.morphologyEx(fgmask, cv2.MORPH_CLOSE, kernel, iterations=2)
+                
+                # Apply the mask on the frame and return
+                histMask = cv2.bitwise_and(imgKeyboardCopy, imgKeyboardCopy, mask=fgmask)
+
+            if cropImgHist is not None:
+                captImgTargetHsv = cv2.cvtColor(imgKeyboardCopy,cv2.COLOR_BGR2HSV)
+
+                # apply backprojection
+                dst = cv2.calcBackProject([captImgTargetHsv],[0,1],cropImgHist,[0,180,0,256],1)
+
+                # Now convolute with circular disc
+                disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(5,5))
+                cv2.filter2D(dst,-1,disc,dst)
+
+                # threshold and binary AND
+                ret,thresh = cv2.threshold(dst,50,255,0)
+                thresh = cv2.merge((thresh,thresh,thresh))
+                bgSubMask = cv2.bitwise_and(imgKeyboardCopy,thresh)
+
+            if histMask is not None and bgSubMask is not None:
+                res = cv2.bitwise_and(histMask, bgSubMask)
+                cv2.imshow("res", res)
+
             for key in prepKeys['keys']:
                 if(os.environ.get('SHOW_KEY_CORNERS').upper() == 'TRUE'):
                     for point in key['points']:
@@ -146,12 +187,33 @@ while(True):
                     cv2.putText(imgKeyboard, key['symbol'], (key['points'][0]['x'], key['points'][0]['y']),
                         cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1, cv2.LINE_AA)
 
-
             # Show image with only keyboard
             cv2.imshow("imgKeyboard", imgKeyboard)
 
     # Waits for a user input to quit the application
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    k = cv2.waitKey(1) & 0xFF
+
+    if k == ord('b'):
+        bgSubtractor = cv2.createBackgroundSubtractorMOG2(history=10, varThreshold=30, detectShadows=False)
+    elif k == ord('h'):
+        captHeight, captWidth, _ = captImg.shape
+        squareSide = 80
+        
+        captHeightHalf = int(captHeight / 2)
+        captWidthHalf = int(captWidth / 2)
+        squareSideHalf = int(squareSide / 2)
+
+        topLeft = (captWidthHalf - squareSideHalf, captHeightHalf - squareSideHalf)
+        bottomLeft = (captWidthHalf - squareSideHalf, captHeightHalf + squareSideHalf)
+        topRight = (captWidthHalf + squareSideHalf, captHeightHalf - squareSideHalf)
+        bottomRight = (captWidthHalf + squareSideHalf, captHeightHalf + squareSideHalf)
+
+        cropImg = captImg[topLeft[1]:bottomLeft[1], topLeft[0]:topRight[0]]
+        cropImgHsv = cv2.cvtColor(cropImg,cv2.COLOR_BGR2HSV)
+
+        # calculating object histogram
+        cropImgHist = cv2.calcHist([cropImgHsv],[0, 1], None, [12, 12], [0, 180, 0, 256] )
+    elif k == ord('q'):
         break
 
 cap.release()
