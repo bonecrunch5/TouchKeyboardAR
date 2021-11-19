@@ -254,6 +254,28 @@ while(True):
                     maxDistance = 0
                     furthestPoint = None
 
+                    proximityFactor = 0.01
+                    # TODO: use int instead of bool to know how many points originate from each side
+                    originTop = False
+                    originBot = False
+                    originLeft = False
+                    originRight = False
+
+                    for point in approxPolygon:
+                        x, y = point[0]
+
+                        if not originTop and y <= imgKeyboardHeight * proximityFactor:
+                            originTop = True
+
+                        if not originBot and y >= imgKeyboardHeight * (1 - proximityFactor):
+                            originBot = True
+
+                        if not originLeft and x <= imgKeyboardWidth * proximityFactor:
+                            originLeft = True
+
+                        if not originRight and x >= imgKeyboardWidth * (1 - proximityFactor):
+                            originRight = True
+
                     for point in approxPolygon:
                         x, y = point[0]
 
@@ -262,7 +284,27 @@ while(True):
                         distLeft = x
                         distRight = imgKeyboardWidth - x
 
-                        avgDist = (distTop + distBot + distLeft + distRight) / 4
+                        avgDist = 0
+                        sides = 0
+
+                        if originTop:
+                            avgDist += distTop
+                            sides += 1
+
+                        if originBot:
+                            avgDist += distBot
+                            sides += 1
+
+                        if originLeft:
+                            avgDist += distLeft
+                            sides += 1
+
+                        if originRight:
+                            avgDist += distRight
+                            sides += 1
+
+                        if sides > 0:
+                            avgDist /= sides
 
                         if avgDist > maxDistance:
                             furthestPoint = point
