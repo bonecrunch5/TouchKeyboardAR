@@ -246,24 +246,33 @@ while(True):
                         maxPerimeter = perimeter
                         biggestContour = contour
 
-                if biggestContour is not None:
-                    approxPolygon = cv2.approxPolyDP(biggestContour, 0.05 * maxPerimeter, True)
+                imgKeyboardHeight, imgKeyboardWidth, _ = imgKeyboard.shape
 
-                    totalX = 0
-                    totalY = 0
+                if biggestContour is not None:
+                    approxPolygon = cv2.approxPolyDP(biggestContour, 0.001 * maxPerimeter, True)
+
+                    maxDistance = 0
+                    furthestPoint = None
 
                     for point in approxPolygon:
                         x, y = point[0]
 
-                        totalX += x
-                        totalY += y
+                        distTop = y
+                        distBot = imgKeyboardHeight - y
+                        distLeft = x
+                        distRight = imgKeyboardWidth - x
+
+                        avgDist = (distTop + distBot + distLeft + distRight) / 4
+
+                        if avgDist > maxDistance:
+                            furthestPoint = point
+                            maxDistance = avgDist
 
                         cv2.circle(imgKeyboardCopy, (x, y), 3, (0, 0, 255), -1)
 
-                    avgX = int(totalX / len(approxPolygon))
-                    avgY = int(totalY / len(approxPolygon))
-
-                    cv2.circle(imgKeyboardCopy, (avgX, avgY), 5, (255, 0, 0), -1)
+                    if furthestPoint is not None:
+                        x, y = furthestPoint[0]
+                        cv2.circle(imgKeyboardCopy, (x, y), 5, (255, 0, 0), -1)
 
                     hull = cv2.convexHull(biggestContour)
 
