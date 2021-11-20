@@ -1,6 +1,7 @@
 import cv2
 import sys
 import numpy as np
+import math
 import json
 import logging
 import os
@@ -251,60 +252,79 @@ while(True):
                 if biggestContour is not None:
                     approxPolygon = cv2.approxPolyDP(biggestContour, 0.001 * maxPerimeter, True)
 
+                    contourConvexHull = cv2.convexHull(approxPolygon)
+
+                    contourArea = np.zeros((imgKeyboardHeight, imgKeyboardWidth))
+                    cv2.fillPoly(contourArea, pts=[contourConvexHull], color=(255,255,255))
+                    cv2.imshow('contourArea',contourArea)
+
+                    massX, massY = np.where(contourArea >= 255)
+
+                    centerX = -1
+                    centerY = -1
+
+                    try:
+                        centerX = int(np.average(massX))
+                        centerY = int(np.average(massY))
+
+                        cv2.circle(res, (centerY, centerX), 5, (0, 255, 0), 3)
+                    except ValueError:
+                        print("continue")
+
+                    cv2.imshow("res", res)
+                    
                     maxDistance = 0
                     furthestPoint = None
-
                     proximityFactor = 0.01
-                    # TODO: use int instead of bool to know how many points originate from each side
-                    originTop = False
-                    originBot = False
-                    originLeft = False
-                    originRight = False
+
+                    # Index order: top, bottom, left, right
+                    origin = [0] * 4
 
                     for point in approxPolygon:
                         x, y = point[0]
 
-                        if not originTop and y <= imgKeyboardHeight * proximityFactor:
-                            originTop = True
+                        if y <= imgKeyboardHeight * proximityFactor:
+                            origin[0] += 1
 
-                        if not originBot and y >= imgKeyboardHeight * (1 - proximityFactor):
-                            originBot = True
+                        if y >= imgKeyboardHeight * (1 - proximityFactor):
+                            origin[1] += 1
 
-                        if not originLeft and x <= imgKeyboardWidth * proximityFactor:
-                            originLeft = True
+                        if x <= imgKeyboardWidth * proximityFactor:
+                            origin[2] += 1
 
-                        if not originRight and x >= imgKeyboardWidth * (1 - proximityFactor):
-                            originRight = True
+                        if x >= imgKeyboardWidth * (1 - proximityFactor):
+                            origin[3] += 1
 
                     for point in approxPolygon:
                         x, y = point[0]
 
-                        distTop = y
-                        distBot = imgKeyboardHeight - y
-                        distLeft = x
-                        distRight = imgKeyboardWidth - x
+                        # Index order: top, bottom, left, right
+                        dist = [0] * 4
+                        dist[0] = y
+                        dist[1] = imgKeyboardHeight - y
+                        dist[2] = x
+                        dist[3] = imgKeyboardWidth - x
 
                         avgDist = 0
                         sides = 0
 
-                        if originTop:
-                            avgDist += distTop
-                            sides += 1
+                        for i in range(0, 4):
+                            if origin[i] > 1:
+                                avgDist += dist[i]
+                                sides += 1
+                                break
 
-                        if originBot:
-                            avgDist += distBot
-                            sides += 1
-
-                        if originLeft:
-                            avgDist += distLeft
-                            sides += 1
-
-                        if originRight:
-                            avgDist += distRight
-                            sides += 1
+                        if sides == 0:
+                            for i in range(0, 4):
+                                if origin[i] == 1:
+                                    avgDist += dist[i]
+                                    sides += 1
 
                         if sides > 0:
                             avgDist /= sides
+
+                        if centerX != -1 and centerY != -1:
+                            avgDist = avgDist * 0.6 + math.sqrt(math.pow((centerX - x), 2) + math.pow((centerY - y), 2)) * 0.4
 
                         if avgDist > maxDistance:
                             furthestPoint = point
