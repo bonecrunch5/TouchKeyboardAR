@@ -1,5 +1,6 @@
 import cv2
 import sys
+import time
 import numpy as np
 import math
 import json
@@ -7,6 +8,14 @@ import logging
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+pressedKey = None
+lastPressedKey = None
+lastPressedKeyHomographyPoints = None
+showKeyStartTime = time.time()
+pressedKeyStartTime = time.time()
+keyShowSeconds = 2
+keyPressSeconds = 1
 
 prepImgPath = './generated/imgKeyboard.jpg'
 prepKeysPath = './generated/keys.json'
@@ -71,6 +80,17 @@ matcher = cv2.FlannBasedMatcher(index_params, search_params)
 
 bgSubtractor = None
 cropImgHist = None
+
+def isInSquare(point, topLeftVertex, botRightVertex, offset=10):
+    x = point['x']
+    y = point['y']
+    
+    minX = topLeftVertex['x']
+    minY = topLeftVertex['y']
+    maxX = botRightVertex['x']
+    maxY = botRightVertex['y']
+
+    return minX - offset < x and minY - offset < y and maxX + offset > x and maxY + offset > y
 
 def getContours(image):
     # Convert from RGB to grayscale
@@ -142,7 +162,7 @@ while(True):
     captKeypoints, captDescriptors = sift.detectAndCompute(captImg,None)
 
     # Show the camera image
-    cv2.imshow('img', captImgSquare)
+    cv2.imshow('img square', captImgSquare)
 
     # Match keypoints
     if (captDescriptors is not None and len(captDescriptors) > 1):
@@ -336,6 +356,39 @@ while(True):
                         x, y = furthestPoint[0]
                         cv2.circle(imgKeyboardCopy, (x, y), 5, (255, 0, 0), -1)
 
+                        for key in prepKeys['keys']:            
+                            topLeftVertex = key['points'][0]
+                            botRightVertex = key['points'][2]
+                            if isInSquare({ 'x': x, 'y': y}, topLeftVertex, botRightVertex, 10):
+                                if pressedKey == key['symbol']:
+                                    if time.time() - pressedKeyStartTime >= keyPressSeconds:
+                                        if pressedKey == 'ENTER':
+                                            print('\n', end='', flush=True)
+                                        elif pressedKey == 'SPACE':
+                                            print(' ', end='', flush=True)
+                                        elif pressedKey == 'BACKSPACE':
+                                            print('\b', end='', flush=True)
+                                            print(' ', end='', flush=True)
+                                            print('\b', end='', flush=True)
+                                        else:
+                                            print(pressedKey, end='', flush=True)
+
+                                        lastPressedKey = pressedKey
+                                        showKeyStartTime = time.time()
+
+                                        keyPointsArray = []
+
+                                        for point in key['points']:
+                                            keyPointsArray.append([point['x'], point['y']])
+
+                                        lastPressedKeyHomographyPoints = keyPointsArray
+
+                                        print('\a', end='', flush=True)
+                                        pressedKey = None
+                                else:
+                                    pressedKey = key['symbol']
+                                    pressedKeyStartTime = time.time()
+
                     hull = cv2.convexHull(biggestContour)
 
                     # cv2.drawContours(imgKeyboardCopy, [hull], -1, (0, 255, 0))
@@ -360,6 +413,16 @@ while(True):
             # Show image with only keyboard
             cv2.imshow("imgKeyboard", imgKeyboard)
 
+            if lastPressedKeyHomographyPoints is not None:
+                homographyMatrix_WarpInv = np.linalg.inv(homographyMatrix_Warp)
+                lastPressedKeyPoints = cv2.perspectiveTransform(np.float32([lastPressedKeyHomographyPoints]), homographyMatrix_WarpInv)[0]
+
+                cv2.line(captImg, (int(lastPressedKeyPoints[len(key['points']) - 1][0]), int(lastPressedKeyPoints[len(key['points']) - 1][1])),
+                                (int(lastPressedKeyPoints[0][0]), int(lastPressedKeyPoints[0][1])), (0, 255, 0), 2)
+
+                for i in range(0, len(lastPressedKeyPoints) - 1):
+                    cv2.line(captImg, (int(lastPressedKeyPoints[i][0]), int(lastPressedKeyPoints[i][1])), (int(lastPressedKeyPoints[i + 1][0]), int(lastPressedKeyPoints[i + 1][1])), (0, 255, 0), 2)
+
     # Waits for a user input to quit the application
     k = cv2.waitKey(1) & 0xFF
 
@@ -373,6 +436,15 @@ while(True):
         cropImgHist = cv2.calcHist([cropImgHsv],[0, 1], None, [12, 12], [0, 180, 0, 256] )
     elif k == ord('q'):
         break
+        
+    if lastPressedKey is not None:
+        cv2.putText(captImg, lastPressedKey, (10, 60), cv2.FONT_HERSHEY_PLAIN, 4, (0, 0, 255), 4)
+
+        if time.time() - showKeyStartTime >= keyShowSeconds:
+            lastPressedKey = None
+            lastPressedKeyHomographyPoints = None
+
+    cv2.imshow('img', captImg)
 
 cap.release()
 cv2.destroyAllWindows()
