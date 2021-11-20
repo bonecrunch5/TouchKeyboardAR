@@ -1,6 +1,7 @@
 import cv2
 import sys
 import time
+import datetime
 import numpy as np
 import math
 import json
@@ -8,6 +9,8 @@ import logging
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+writtenString = ''
 
 pressedKey = None
 lastPressedKey = None
@@ -364,14 +367,18 @@ while(True):
                                     if time.time() - pressedKeyStartTime >= keyPressSeconds:
                                         if pressedKey == 'ENTER':
                                             print('\n', end='', flush=True)
+                                            writtenString += '\n'
                                         elif pressedKey == 'SPACE':
                                             print(' ', end='', flush=True)
+                                            writtenString += ' '
                                         elif pressedKey == 'BACKSPACE':
                                             print('\b', end='', flush=True)
                                             print(' ', end='', flush=True)
                                             print('\b', end='', flush=True)
+                                            writtenString = writtenString[:-1]
                                         else:
                                             print(pressedKey, end='', flush=True)
+                                            writtenString += pressedKey
 
                                         lastPressedKey = pressedKey
                                         showKeyStartTime = time.time()
@@ -445,6 +452,15 @@ while(True):
             lastPressedKeyHomographyPoints = None
 
     cv2.imshow('img', captImg)
+
+print('\n', end='', flush=True)
+
+if not os.path.exists("kb-output"):
+    os.mkdir("kb-output")
+
+f = open('kb-output/' + datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%dT%H-%M-%SZ') + '.txt', 'w')
+f.write(writtenString)
+f.close()
 
 cap.release()
 cv2.destroyAllWindows()
