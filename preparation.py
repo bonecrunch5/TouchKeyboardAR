@@ -215,6 +215,13 @@ while(True):
                         bubbleSortKeys(corners)
 
                         keysTopLeft.append({'index': i, 'point': corners[0]['point']})
+                        
+                        key['points'] = []
+
+                        for corner in corners:
+                            key['points'].append(corner['point'])
+                        
+                        key['points'][len(key['points']) - 1], key['points'][len(key['points']) - 2] = key['points'][len(key['points']) - 2], key['points'][len(key['points']) - 1]
 
                     # Order keysTopLeft array by key, based on keyboard layout
                     # Compare y. If y is same (difference between points is lower than N), compare x.
