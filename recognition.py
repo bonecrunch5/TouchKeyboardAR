@@ -198,6 +198,9 @@ def getFingerTip(fingerContour, img):
     contourOverDark = np.zeros((imgKeyboardHeight, imgKeyboardWidth))
     cv2.fillPoly(contourOverDark, pts=[fingerContour], color=(255,255,255))
 
+    if debugImages:
+        cv2.imshow('Debug - Finger Contour Shape', contourOverDark)
+
     centerOfMass = opencv_utilities.getCenterOfMass(contourOverDark)
     
     # Get furthest point from rest of finger/hand
@@ -291,6 +294,9 @@ def getFingerContour(img):
 
     # Merge masks and apply on image
     imgMasked = cv2.bitwise_and(histMask, bgSubMask)
+
+    if debugImages:
+        cv2.imshow('Debug - Masked Finger', imgMasked)
 
     # Clean image
     kernel = np.ones((10, 10), np.uint8)
