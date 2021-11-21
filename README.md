@@ -47,11 +47,11 @@ Follow the instructions on screen (use <kbd>Space</kbd> to complete each instruc
 
 The program will show the pressed keys on the screen, as well as the inputted text on the console terminal. When you exit the program, by pressing <kbd>Esc</kbd>, the inputted text will also be written to a file in the `kb-output` folder. 
 
-It should work unregardless of the keyboard and finger orientation relative to the camera. If it is behaving badly, you can redo both the *hand scan* step and *clear background scan* step by pressing <kbd>H</kbd> or <kbd>B</kbd> respectively. If it continues to behave badly, your lighting setup may not be appropriate.
+It should work regardless of the keyboard and finger orientation relative to the camera. If it is behaving badly, you can redo both the *hand scan* step and *clear background scan* step by pressing <kbd>H</kbd> or <kbd>B</kbd> respectively. If it continues to behave badly, your lighting setup may not be appropriate.
 
 ## Creating the keys list file manually
 
-If for some reason you don't want to run **Preparation Program**, you can write the keys information file yourself. All you have to do is follow the JSON structure defined bellow:
+If for some reason you don't want to run the **Preparation Program**, you can write the keys information file yourself. All you have to do is follow the JSON structure defined below:
 ```
 {
     "keys": [
