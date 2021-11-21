@@ -189,7 +189,6 @@ def detectPressedKey(pressedPoint):
             break
 
 # Get the finger tip coordinates
-# TODO: the comments can probably be improved
 def getFingerTip(fingerContour, img):
     imgKeyboardHeight, imgKeyboardWidth, _ = img.shape
 
