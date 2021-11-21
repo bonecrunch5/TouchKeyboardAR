@@ -103,7 +103,8 @@ def drawKeyOutline(img):
         return False
 
     if g_homographyMatrix is None:
-        print('No homography matrix for the keyboad. The keyboard probably hasn\'t been deteceted, so can\'t show outline of key')
+        if debugImages:
+            print('No homography matrix for the keyboard. The keyboard probably hasn\'t been detected, so can\'t show outline of key')
         return False
 
     # Calculate inversed homography to get points on captured image
