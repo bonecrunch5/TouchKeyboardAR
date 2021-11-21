@@ -1,56 +1,111 @@
 import cv2
 import numpy as np
 import sys
+import time
 import os
 import json
 from dotenv import load_dotenv
 load_dotenv()
 
-numKeys = -1
-keySymbols = []
+### DEBUG VARS ###
 
-# Get arguments (number of keys or file with list of keys)
-if len(sys.argv) > 1:
-    argument = sys.argv[1]
+debugImagesEnv = os.environ.get('SHOW_DEBUG_IMAGES')
+debugImages = debugImagesEnv is not None and debugImagesEnv.upper() == 'TRUE'
 
-    try:
-        numKeys = int(argument)
-    except ValueError:
-        keysFile = argument
+### GLOBAL VARS ###
 
-        try:
-            filePointer = open(keysFile, "r")
+# Keyboard width and height
+g_keyboardWidth = 792
+g_keyboardHeight = 380
 
-            for line in filePointer:
-                stripedLine = line.strip()
+# Number of keys to recognize
+g_numKeys = -1
 
-                if len(stripedLine) > 0:
-                    keySymbols.append(stripedLine)
+# List of symbols to recognize in keys (in order)
+g_keySymbols = []
 
-            numKeys = len(keySymbols)
-        except IOError:
-            print("Could not open file " + keysFile)
-            
+# Object that will be written to file
+# It will have the info of all keys (symbols and positions) on the keyboard
+g_jsonOutput = {}
+
+# The top view image of the keyboard that will be saved
+g_imgKeyboard = None
+
+# If the keyboard is currently being detected
+g_keyboardDetected = False
+
+# If the keys are currently being detected
+g_keysDetected = False
+
+# If it should show the 'No Save Possible' message
+g_showNoSaveMsg = False
+# Time since 'No Save Possible' message is being shown
+g_showNoSaveMsgStartTime = time.time()
+# Time to show 'No Save Possible' message
+g_showNoSaveMsgSeconds = 2
+
+### FUNCTIONS ###
+
+# Check if a point is to the left or above another point
+# Point: { "x": <x_coordinate>, "y": <y_coordinate> }
 def lessThanPoint(point1, point2, offset):
     if (abs(point1['y']-point2['y']) < offset):
         return point1['x']-point2['x'] < 0
     return point1['y']-point2['y'] < 0
 
-def bubbleSortKeys(keysArray):
-    n = len(keysArray)
+# Sort points by placement on screen
+# points: [
+#   {
+#       "x": <x_coordinate>,
+#       "y": <y_coordinate>
+#   },
+#   ...
+# ]
+def bubbleSortPoints(points):
+    n = len(points)
  
     for i in range(n-1):
         for j in range(0, n-i-1):
-            if lessThanPoint(keysArray[j + 1]['point'],keysArray[j]['point'], 30):
-                keysArray[j], keysArray[j + 1] = keysArray[j + 1], keysArray[j]
+            if lessThanPoint(points[j + 1],points[j], 30):
+                points[j], points[j + 1] = points[j + 1], points[j]
 
-def distance2points(point1, point2):
+# Sort keys by placement on keyboard
+# Only first point in points array will be used
+# keysList: 
+# {
+#     "keys": [
+#         {
+#             "points": [
+#                 {
+#                     "x": <x_coordinate>,
+#                     "y": <y_coordinate>
+#                 },
+#                 ...
+#             ],
+#             ...
+#         },
+#         ...
+#     ]
+# }
+def bubbleSortKeys(keysList):
+    keys = keysList['keys']
+    n = len(keys)
+ 
+    for i in range(n-1):
+        for j in range(0, n-i-1):
+            if lessThanPoint(keys[j + 1]['points'][0],keys[j]['points'][0], 30):
+                keys[j], keys[j + 1] = keys[j + 1], keys[j]
+
+# Get distance between two points
+# point: [ <x_coordinate>, <y_coordinate> ]
+def distanceBetweenPoints(point1, point2):
     return np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
 
+# TODO: what does this do?
 def reorder(points):
     distances = []
     for point in points:
-        distances.append(distance2points(point[0],[600,0]))
+        distances.append(distanceBetweenPoints(point[0],[600,0]))
     
     minDistance = distances[0]
     minDistanceIndex = 0
@@ -66,40 +121,8 @@ def reorder(points):
 
     return newPoints
 
-cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
-
-if not (cap.isOpened()):
-    print('Could not open video device')
-    cap.release()
-    cv2.destroyAllWindows()
-    exit()
-
-# To set the resolution
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1000)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-
-# What sorcery is happening down here to get the top image of the keyboard:
-""" 
-    1-Capture image
-    2-Convert from rgb to grayscale
-    3-Smooth the image 
-    4-Threshold
-    5-Find Contours
-    6-Find the countour with more than 10000 pixels of area
-    7-Aproximate it to a rectangle
-    8-Get the corners
-    9-Find homography to get top imageof the keyboard
-
-    Note: Some shady things going on the arguments of the warpPerspective function because of the size of the output image, need to fix that
-          (Its using the size of the book experiment image, maybe because de destination points are from there, need to change that)
-    Note2: There's some code doing nothing, in the future we need to clean that, but by now it's there if it's needed
-
- """
-jsonOutput = {}
-imgKeyboard = None
-imgKeyboardFinal = None
-
-def getContours(image):
+# Gets the contours in an image
+def getContours(image, namePrefix='Image'):
     # Convert from RGB to grayscale
     imgGray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -107,163 +130,270 @@ def getContours(image):
     imgSmooth = cv2.blur(imgGray, (5, 5))
 
     # Threshold
-    (_, imgThresh) = cv2.threshold(imgSmooth, 100, 255,
-                                   cv2.THRESH_BINARY)  # TODO adjust values of threshold
+    (_, imgThresh) = cv2.threshold(imgSmooth, 100, 255, cv2.THRESH_BINARY)
 
     # Find Countours
     imgCanny = cv2.Canny(imgThresh, 100, 200)
 
-    contours, _ = cv2.findContours(
-        imgCanny, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(imgCanny, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
-    # cv2.imshow('img gray',imgGray)
-    # cv2.imshow('img smooth',imgSmooth)
-    # cv2.imshow('img threshold',imgThresh)
-    # cv2.imshow('img canny', imgCanny)
+    # Show images for debug
+    if(debugImages):
+        cv2.imshow(namePrefix + ' - Gray', imgGray)
+        cv2.imshow(namePrefix + ' - Smooth', imgSmooth)
+        cv2.imshow(namePrefix + ' - Threshold', imgThresh)
+        cv2.imshow(namePrefix + ' - Canny', imgCanny)
 
     return contours
 
+def processKeys(keysPointsList):
+    # If number of keys is as expected, proceed
+    if len(keysPointsList) == g_numKeys:
+        # Initialize JSON object with each key and its corresponding points
+        jsonKeys = []
 
-def processKeys(contours_out):
+        # Get top left corner of each key and store in keysTopLeft array
+        for index, keyPoints in enumerate(keysPointsList):
+            corners = []
 
-    jsonObject = {'keys': []}
-    for contour_out in contours_out:
-        if cv2.contourArea(contour_out, True) > 700:
-            cv2.drawContours(image=mask_out, contours=contour_out, contourIdx=-1,
-                             color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
-            perimeter_out = cv2.arcLength(contour_out, True)
-            approx_out = cv2.approxPolyDP(
-                contour_out, 0.04 * perimeter_out, True)
+            for point in keyPoints:
+                x, y = point[0]
+                corners.append({ "x": int(x), "y": int(y)})
 
-            jsonKey = { 'points': [], 'symbol': None}
-            for point_out in approx_out:
-                x, y = point_out[0]
+            # Orders points
+            bubbleSortPoints(corners)
 
-                jsonKey['points'].append({ "x": int(x), "y": int(y)})
+            # Switch the last two points
+            corners[len(corners) - 1], corners[len(corners) - 2] = corners[len(corners) - 2], corners[len(corners) - 1]
 
-                if(os.environ.get('SHOW_KEY_CORNERS').upper() == 'TRUE'):
-                    cv2.circle(im_out_copy, (x, y), 3, (0, 255, 0), -1)
-                    
-            jsonObject['keys'].append(jsonKey)
+            jsonKeys.append({ 'points': corners, 'symbol': None })
+            
+        jsonObject = {'keys': jsonKeys}
 
-    cv2.imshow('im_out_copy', im_out_copy)
-    cv2.imshow('mask_out', mask_out)
+        # Order jsonObject by key, based on keyboard layout
+        # Compare y. If y is same (difference between points is lower than N), compare x.
+        bubbleSortKeys(jsonObject)
 
-    return jsonObject
+        # Add symbol info to jsonOutput
+        for index, symbol in enumerate(g_keySymbols):
+            jsonObject['keys'][index]['symbol'] = symbol
 
+        return jsonObject
+    
+    return None
 
-def processHomography(approxPolygon):
-    approxPolygon = reorder(approxPolygon)
-    pts_dst = np.array([[792, 1], [792, 380], [1, 380], [1, 1]])
-    homographyMatrix, _ = cv2.findHomography(approxPolygon, pts_dst)
+# Get contours of the keys
+def getKeysContours(img):
+    contours = getContours(img, namePrefix='Keys')
 
-    # Hardcoded proportions to be changed in the future
-    global imgKeyboard
-    imgKeyboard = cv2.warpPerspective(img, homographyMatrix, (792, 380))
-
-while(True):
-    # Capture frame-by-frame
-    _, img = cap.read()
-
-    contours = getContours(img)
-
-    # Draw countours in original image
-    imageCopy = img.copy()
-
-    # Create Grayscale black image
-    blackImage = np.zeros_like(img)
-    blackImage = cv2.cvtColor(blackImage, cv2.COLOR_BGR2GRAY)
+    keyContours = []
 
     for contour in contours:
+        if cv2.contourArea(contour, True) > 700:
+            perimeter = cv2.arcLength(contour, True)
+            approxPoly = cv2.approxPolyDP(contour, 0.04 * perimeter, True)
+
+            keyContours.append(approxPoly)
+
+    return keyContours
+
+# Get outer contour of the keyboard
+def getKeyboardContour(img):
+    # Get outer counters of keyboard
+    keyboardContours = getContours(img, namePrefix='Keyboard')
+
+    # Find the contour with more than 10000 pixels of area and 4 corners
+    for contour in keyboardContours:
         if cv2.contourArea(contour, True) > 10000:
-            cv2.drawContours(image=blackImage, contours=contour, contourIdx=-1,
-                             color=(255, 255, 255), thickness=2, lineType=cv2.LINE_8)
             perimeter = cv2.arcLength(contour, True)
             approxPolygon = cv2.approxPolyDP(contour, 0.05 * perimeter, True)
 
-            for point in approxPolygon:
-                x, y = point[0]
-                cv2.circle(imageCopy, (x, y), 3, (0, 255, 0), -1)
-
-            # drawing skewed rectangle
-            cv2.drawContours(imageCopy, [approxPolygon], -1, (0, 255, 0))
-
             if(len(approxPolygon) == 4):
-                processHomography(approxPolygon)
-                contours_out = getContours(imgKeyboard)
+                if(debugImages):
+                    # Draw points
+                    for point in approxPolygon:
+                        x, y = point[0]
+                        cv2.circle(img, (x, y), 3, (0, 255, 0), -1)
 
-                im_out_copy = imgKeyboard.copy()
-                mask_out = np.zeros_like(im_out_copy)
-                mask_out = cv2.cvtColor(mask_out, cv2.COLOR_BGR2GRAY)
+                    # Draw skewed rectangle
+                    cv2.drawContours(img, [approxPolygon], -1, (0, 255, 0))
 
-                jsonObject = processKeys(contours_out)
+                    cv2.imshow('Camera Image with detected keyboard contour', img)
 
-                # If number of keys is as expected, proceed
-                if numKeys == -1 or len(jsonObject['keys']) == numKeys:
-                    # Will hold the keys with their index on jsonOutput and their top left corner
-                    keysTopLeft = []
+                return approxPolygon
 
-                    # Get top left corner of each key and store in keysTopLeft array
-                    for i, key in enumerate(jsonObject['keys']):
-                        keyPoints = key['points']
+# Process homography and get top view keyboard image
+def processHomography(img, keyboardContour):
+    # TODO: what does this do?
+    keyboardContour = reorder(keyboardContour)
 
-                        corners = []
+    # Get homography matrix for top view image of keyboard with top view image dimensions
+    ptsDst = np.array([[g_keyboardWidth, 1], [g_keyboardWidth, g_keyboardHeight], [1, g_keyboardHeight], [1, 1]])
+    homographyMatrix, _ = cv2.findHomography(keyboardContour, ptsDst)
 
-                        for point in keyPoints:
-                            corners.append({'point': point})
+    # TODO: Hardcoded proportions to be changed in the future?
+    return cv2.warpPerspective(img, homographyMatrix, (g_keyboardWidth, g_keyboardHeight))
 
-                        bubbleSortKeys(corners)
+# Get arguments (number of keys or file with list of keys)
+def loadArguments():
+    global g_numKeys
 
-                        keysTopLeft.append({'index': i, 'point': corners[0]['point']})
-                        
-                        key['points'] = []
+    if len(sys.argv) == 2:
+        argument = sys.argv[1]
 
-                        for corner in corners:
-                            key['points'].append(corner['point'])
-                        
-                        key['points'][len(key['points']) - 1], key['points'][len(key['points']) - 2] = key['points'][len(key['points']) - 2], key['points'][len(key['points']) - 1]
+        try:
+            filePointer = open(argument, "r")
 
-                    # Order keysTopLeft array by key, based on keyboard layout
-                    # Compare y. If y is same (difference between points is lower than N), compare x.
-                    bubbleSortKeys(keysTopLeft)
+            for line in filePointer:
+                stripedLine = line.strip()
 
-                    keyPlacementImg = imgKeyboard.copy()
+                if len(stripedLine) > 0:
+                    g_keySymbols.append(stripedLine)
 
-                    # Add symbol info to jsonOutput (also show symbols on image display)
-                    for i, symbol in enumerate(keySymbols):
-                            key = keysTopLeft[i]
-                            
-                            jsonObject['keys'][key['index']]['symbol'] = symbol
+            g_numKeys = len(g_keySymbols)
 
-                            if(os.environ.get('SHOW_KEY_LABELS').upper() == 'TRUE'):
-                                cv2.putText(keyPlacementImg, symbol, (key['point']['x'], key['point']['y']), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1, cv2.LINE_AA)
+            return True
+        except IOError:
+            print("Could not open file " + argument)
 
-                    cv2.imshow("Frontal Keyboard Image", keyPlacementImg)
-                    
-                    imgKeyboardFinal = imgKeyboard
-                    jsonOutput = jsonObject
+    return False
 
-    # Display the resulting frame
-    cv2.imshow('img', img)
-    #cv2.imshow('img copy', imageCopy)
-    #cv2.imshow('blackImage', blackImage)
+# Save resulting info
+def saveOutput():
+    if (g_imgKeyboard is not None and g_jsonOutput is not None):
+        # Create 'generated' folder
+        if not os.path.exists("generated"):
+            os.mkdir("generated")
 
-    # Waits for a user input to quit the application
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        # Save keys info file
+        f = open("generated/keys.json", "w")
+        f.write(json.dumps(g_jsonOutput))
+        f.close()
 
-# Save info
-if (imgKeyboardFinal is not None):
-    if not os.path.exists("generated"):
-        os.mkdir("generated")
-    f = open("generated/keys.json", "w")
-    f.write(json.dumps(jsonOutput))
-    f.close()
-    cv2.imwrite("generated/imgKeyboard.jpg", imgKeyboardFinal)
-    print("Keyboard and keys detected successfully")
+        # Save top view keyboard image to file
+        cv2.imwrite("generated/imgKeyboard.jpg", g_imgKeyboard)
+
+        print("Keyboard and keys info saved successfully")
+    else:
+        print("Coudn't save info")
+
+def programLoop(cap):
+    """ 
+    Steps for acquiring the top image of the keyboard:
+    1 - Capture image
+    2 - Convert from rgb to grayscale
+    3 - Smooth the image 
+    4 - Threshold
+    5 - Find Contours
+    6 - Find the countour with more than 10000 pixels of area
+    7 - Aproximate it to a rectangle
+    8 - Get the corners
+    9 - Find homography to get top imageof the keyboard
+    """
+
+    while(True):
+        # Capture frame-by-frame
+        _, captImg = cap.read()
+        
+        # Copy image so original stays unchanged
+        imgCopy = captImg.copy()
+
+        keyboardContour = getKeyboardContour(captImg.copy())
+
+        global g_keyboardDetected
+        g_keyboardDetected = keyboardContour is not None
+
+        if g_keyboardDetected:
+            birdsEyeKeyboard = processHomography(captImg.copy(), keyboardContour)
+            
+            keyContours = getKeysContours(birdsEyeKeyboard)
+
+            jsonObjKeys = processKeys(keyContours)
+
+            global g_keysDetected
+            g_keysDetected = jsonObjKeys is not None
+
+        if g_keysDetected:
+            global g_imgKeyboard, g_jsonOutput
+
+            g_imgKeyboard = birdsEyeKeyboard
+            g_jsonOutput = jsonObjKeys
+            
+            birdsEyeKeyboardLabels = birdsEyeKeyboard.copy()
+
+            for key in jsonObjKeys['keys']:
+                symbol = key['symbol']
+                keyPoints = key['points']
+                labelPoint = (keyPoints[0]['x'], keyPoints[0]['y'])
+
+                # Draw key outlines
+                cv2.line(birdsEyeKeyboardLabels, (keyPoints[len(keyPoints) - 1]['x'], keyPoints[len(keyPoints) - 1]['y']), (keyPoints[0]['x'], keyPoints[0]['y']), (0, 255, 0), 2)
+
+                for i in range(0, len(keyPoints) - 1):
+                    cv2.line(birdsEyeKeyboardLabels, (keyPoints[i]['x'], keyPoints[i]['y']), (keyPoints[i + 1]['x'], keyPoints[i + 1]['y']), (0, 255, 0), 2)
+
+                cv2.putText(birdsEyeKeyboardLabels, symbol, labelPoint, cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1, cv2.LINE_AA)
+            
+            cv2.imshow("Frontal Keyboard Image", birdsEyeKeyboardLabels)
+        
+        # Write user messages on camera image
+        if g_keysDetected:
+            cv2.putText(imgCopy, 'Check the keys output', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+            cv2.putText(imgCopy, 'If it is correct, press \'SPACE\' to save', (20, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+        elif g_keyboardDetected:
+            cv2.putText(imgCopy, 'Wait for the keys output to appear', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+        else:
+            cv2.putText(imgCopy, 'Point the camera at the keyboard', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+
+        global g_showNoSaveMsg, g_showNoSaveMsgStartTime
+        if g_showNoSaveMsg:
+            cv2.putText(imgCopy, 'Can\'t save yet, no keyboard detected', (20, imgCopy.shape[0] - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 160), 1, cv2.LINE_AA)
+
+            # Disable the 'No Save Possible' message after some time
+            if time.time() - g_showNoSaveMsgStartTime >= g_showNoSaveMsgSeconds:
+                g_showNoSaveMsg = False
+
+        # Display the resulting frame
+        cv2.imshow('Camera Image', imgCopy)
+
+        # Waits for a user input to quit the application
+        userInput = cv2.waitKey(1) & 0xFF
+
+        if userInput == 32:
+            # If it is not possible to save, show 'No Save Possible' message
+            if g_jsonOutput is None or g_imgKeyboard is None:
+                g_showNoSaveMsg = True
+                g_showNoSaveMsgStartTime = time.time()
+
+                print('Keyboard and keys haven\'t been fully detected yet')
+            else:
+                return True
+        elif userInput == 27:
+            return False
+
+
+### MAIN CODE ###
+
+if loadArguments():
+    # Capture video from camera
+    cap = cv2.VideoCapture(int(os.environ.get('CAMERA_ID', '0')))
+
+    if cap.isOpened():
+        # Set the resolution
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1000)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+
+        shouldSaveOutput = programLoop(cap)
+
+        if shouldSaveOutput:
+            saveOutput()
+        else:
+            print('Exited without saving')
+    else:
+        print('Could not open video device')
+
+    # When everything done, release the capture
+    cap.release()
+    cv2.destroyAllWindows()
 else:
-    print("No keyboard was detected")
-
-# When everything done, release the capture
-cap.release()
-cv2.destroyAllWindows()
+    print('Needs valid arguments')
