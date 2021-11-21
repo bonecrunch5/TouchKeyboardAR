@@ -43,7 +43,7 @@ The **Recognition Program** identifies the keyboard through the camera and detec
 python recognition.py <keyboard-image-path> <keys-list-file-path>
 ```
 
-Follow the instructions on screen (use <kbd>Space</kbd> to complete each instruction). Once you've done the initial steps (*hand scan* and *clear background scan* steps), you can use your hand to press the keys of the keyboard. Just hold your finger tip over the key you want to press, with your finger fully extended, for 1 second (you can change this value with the `KEY_PRESS_DURATION` environment variable).
+Follow the instructions on screen (use <kbd>Space</kbd> to complete each instruction). Once you've done the initial steps (*hand scan* and *clear background scan* steps), you can use your hand to press the keys of the keyboard. Just hold your fingertip over the key you want to press, with your finger fully extended, for 1 second (you can change this value with the `KEY_PRESS_DURATION` environment variable).
 
 The program will show the pressed keys on the screen, as well as the inputted text on the console terminal. When you exit the program, by pressing <kbd>Esc</kbd>, the inputted text will also be written to a file in the `kb-output` folder. 
 
