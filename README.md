@@ -20,7 +20,7 @@ python preparation.py <key-symbol-list-file-path>
 
 Follow the instructions on screen. Once the keyboard and keys have been detected, press <kbd>Space</kbd> to save the output. If you wish to quit without saving, press <kbd>Esc</kbd>.
 
-If you don't want to run this program before running the **Recognition Program**, you'll need to create the needed files yourself. The first file is a top view image of the keyboard (the keyboard show fill the whole image). The second file is a keys information file; for that check [**Creating the keys list file manually**](#Creating-the-keys-list-file-manually).
+If you don't want to run this program before running the **Recognition Program**, you'll need to create the needed files yourself. The first file is a top view image of the keyboard (the keyboard should fill the whole image). The second file is a keys information file; for that check [**Creating the keys list file manually**](#Creating-the-keys-list-file-manually).
 
 ### Recognition Program
 
