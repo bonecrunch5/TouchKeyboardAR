@@ -20,20 +20,17 @@ g_keyboardHeight = 380
 
 # Number of keys to recognize
 g_numKeys = -1
-
 # List of symbols to recognize in keys (in order)
 g_keySymbols = []
 
 # Object that will be written to file
 # It will have the info of all keys (symbols and positions) on the keyboard
 g_jsonOutput = {}
-
 # The top view image of the keyboard that will be saved
 g_imgKeyboard = None
 
 # If the keyboard is currently being detected
 g_keyboardDetected = False
-
 # If the keys are currently being detected
 g_keysDetected = False
 
@@ -101,7 +98,12 @@ def bubbleSortKeys(keysList):
 def distanceBetweenPoints(point1, point2):
     return np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
 
-# TODO: what does this do?
+# Write text with outline on screen
+def writeTextOnImg(img, text, point, color, outlineColor):
+    cv2.putText(img, text, point, cv2.FONT_HERSHEY_SIMPLEX, 0.9, outlineColor, 2, cv2.LINE_AA)
+    cv2.putText(img, text, point, cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 1, cv2.LINE_AA)
+
+# Reorders points to fix orientation error
 def reorder(points):
     distances = []
     for point in points:
@@ -224,14 +226,13 @@ def getKeyboardContour(img):
 
 # Process homography and get top view keyboard image
 def processHomography(img, keyboardContour):
-    # TODO: what does this do?
+    # Fix keyboard orientation error
     keyboardContour = reorder(keyboardContour)
 
     # Get homography matrix for top view image of keyboard with top view image dimensions
     ptsDst = np.array([[g_keyboardWidth, 1], [g_keyboardWidth, g_keyboardHeight], [1, g_keyboardHeight], [1, 1]])
     homographyMatrix, _ = cv2.findHomography(keyboardContour, ptsDst)
 
-    # TODO: Hardcoded proportions to be changed in the future?
     return cv2.warpPerspective(img, homographyMatrix, (g_keyboardWidth, g_keyboardHeight))
 
 # Get arguments (number of keys or file with list of keys)
@@ -338,16 +339,18 @@ def programLoop(cap):
         
         # Write user messages on camera image
         if g_keysDetected:
-            cv2.putText(imgCopy, 'Check the keys output', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
-            cv2.putText(imgCopy, 'If it is correct, press \'SPACE\' to save', (20, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+            writeTextOnImg(imgCopy, 'Check the keys output', (20, 40), (0, 100, 0), (255, 255, 255))
+            writeTextOnImg(imgCopy, 'If it is correct, press \'SPACE\' to save', (20, 75), (0, 100, 0), (255, 255, 255))
         elif g_keyboardDetected:
-            cv2.putText(imgCopy, 'Wait for the keys output to appear', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+            writeTextOnImg(imgCopy, 'Wait for the keys output to appear', (20, 40), (255, 255, 255), (0, 0, 0))
+            writeTextOnImg(imgCopy, 'Make sure all keys are visible', (20, 75), (255, 255, 255), (0, 0, 0))
+            writeTextOnImg(imgCopy, 'and the corrent amount was specified', (20, 110), (255, 255, 255), (0, 0, 0))
         else:
-            cv2.putText(imgCopy, 'Point the camera at the keyboard', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 160, 0), 1, cv2.LINE_AA)
+            writeTextOnImg(imgCopy, 'Point the camera at the keyboard', (20, 40), (255, 255, 255), (0, 0, 0))
 
         global g_showNoSaveMsg, g_showNoSaveMsgStartTime
         if g_showNoSaveMsg:
-            cv2.putText(imgCopy, 'Can\'t save yet, no keyboard detected', (20, imgCopy.shape[0] - 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 160), 1, cv2.LINE_AA)
+            writeTextOnImg(imgCopy, 'Can\'t save yet, no keyboard detected', (20, imgCopy.shape[0] - 40), (0, 0, 160), (255, 255, 255))
 
             # Disable the 'No Save Possible' message after some time
             if time.time() - g_showNoSaveMsgStartTime >= g_showNoSaveMsgSeconds:
