@@ -1,4 +1,4 @@
-# FEUP-RVA
+# TouchKeyboardAR
 ## Getting Started
 Install OpenCV and other dependencies on Python:
 
